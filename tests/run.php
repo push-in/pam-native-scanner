@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+$packageAutoload=dirname(__DIR__). '/vendor/autoload.php';if(is_file($packageAutoload))require $packageAutoload;
 $roots=['Pam\\Native\\Scanner\\'=>dirname(__DIR__).'/src/','Pam\\Native\\'=>dirname(__DIR__,2).'/../pam-native/packages/native/src/'];spl_autoload_register(static function(string$c)use($roots):void{foreach($roots as$p=>$r)if(str_starts_with($c,$p)){$f=$r.str_replace('\\','/',substr($c,strlen($p))).'.php';if(is_file($f))require$f;return;}});
 use Pam\Native\Element;use Pam\Native\Scanner\BarcodeFormat;use Pam\Native\Scanner\CameraFacing;use Pam\Native\Scanner\ScannerView;
 $tests=[];$test=static function(string$n,Closure$f)use(&$tests):void{$tests[$n]=$f;};
