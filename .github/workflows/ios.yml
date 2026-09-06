@@ -24,7 +24,7 @@ jobs:
           path: sdk
       - name: Test concurrent scanner disposal
         run: |
-          swiftc -swift-version 5 plugin/ios/Sources/ScannerLifetime.swift plugin/tests/ios-lifetime/main.swift -o "$RUNNER_TEMP/scanner-lifetime"
+          swiftc -swift-version 5 plugin/ios/Sources/ScannerLifetime.swift plugin/ios/Sources/RecentScans.swift plugin/tests/ios-lifetime/main.swift -o "$RUNNER_TEMP/scanner-lifetime"
           "$RUNNER_TEMP/scanner-lifetime"
       - name: Prepare isolated scanner package
         run: |
