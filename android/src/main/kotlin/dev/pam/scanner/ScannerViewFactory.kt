@@ -36,9 +36,11 @@ class ScannerViewFactory(@Suppress("UNUSED_PARAMETER") context: Context) : Nativ
 private class ScannerHost(context: Context) : FrameLayout(context) {
     var emitter: ((ByteArray) -> Unit)? = null
     private val previewView=PreviewView(context);private val executor=Executors.newSingleThreadExecutor();private val processing=AtomicBoolean(false)
-    private var provider:ProcessCameraProvider?=null;private var camera:Camera?=null;private var scanner:BarcodeScanner=BarcodeScanning.getClient(options("1"));private var facing=1L;private var torch=false;private var enabled=true;private var duplicateMillis=1500L;private var formatSpec="1";private val seen=mutableMapOf<String,Long>()
+    private var provider:ProcessCameraProvider?=null;private var camera:Camera?=null;private var scanner:BarcodeScanner=BarcodeScanning.getClient(options("1"));private var facing=1L;private var torch=false;private var enabled=true;private var duplicateMillis=1500L;private var formatSpec="1";private val seen=RecentScans()
     @Volatile private var released = false
     private var bindingGeneration = 0
+    private var boundPreview: Preview? = null
+    private var boundAnalysis: ImageAnalysis? = null
 
     init{addView(previewView,LayoutParams(LayoutParams.MATCH_PARENT,LayoutParams.MATCH_PARENT));post{bind()}}
     fun update(values:Map<String,WireValue>){if(released)return;val nextFacing=values.integer("facing",1);val nextFormats=values.text("formats","1");torch=values.flag("torch",false);enabled=values.flag("enabled",true);duplicateMillis=values.integer("duplicateIntervalMillis",1500).coerceIn(0,60_000);if(nextFormats!=formatSpec){formatSpec=nextFormats;scanner.close();scanner=BarcodeScanning.getClient(options(formatSpec));bind()};if(nextFacing!=facing){facing=nextFacing;bind()};camera?.cameraControl?.enableTorch(torch)}
@@ -59,7 +61,7 @@ private class ScannerHost(context: Context) : FrameLayout(context) {
                 runCatching {
                     val cameraProvider = future.get()
                     provider = cameraProvider
-                    cameraProvider.unbindAll()
+                    unbindCamera()
                     val preview = Preview.Builder().build().also {
                         it.surfaceProvider = previewView.surfaceProvider
                     }
@@ -67,6 +69,8 @@ private class ScannerHost(context: Context) : FrameLayout(context) {
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                         .build().also { it.setAnalyzer(executor, ::analyze) }
                     val selector = if (facing == 2L) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA
+                    boundPreview = preview
+                    boundAnalysis = analysis
                     camera = cameraProvider.bindToLifecycle(owner, selector, preview, analysis)
                     camera?.cameraControl?.enableTorch(torch)
                 }.onFailure {
@@ -75,7 +79,7 @@ private class ScannerHost(context: Context) : FrameLayout(context) {
             }
         }, ContextCompat.getMainExecutor(context))
     }
-    @ExperimentalGetImage private fun analyze(proxy:androidx.camera.core.ImageProxy){if(released||!enabled||!processing.compareAndSet(false,true)){proxy.close();return};val image=proxy.image;if(image==null){processing.set(false);proxy.close();return};scanner.process(InputImage.fromMediaImage(image,proxy.imageInfo.rotationDegrees)).addOnSuccessListener{barcodes->if(released)return@addOnSuccessListener;val now=android.os.SystemClock.elapsedRealtime();barcodes.forEach{barcode->val value=barcode.rawValue.orEmpty();val last=seen[value];if(value.isNotEmpty()&&(last==null||now-last>=duplicateMillis)){seen[value]=now;send(mapOf("event" to WireValue.Integer(1),"value" to WireValue.Text(value),"format" to WireValue.Integer(format(barcode.format)),"valueKind" to WireValue.Integer(valueKind(barcode.valueType))))}}}.addOnFailureListener{send(mapOf("event" to WireValue.Integer(3),"message" to WireValue.Text(it.message.orEmpty())))}.addOnCompleteListener{processing.set(false);proxy.close()}}
+    @ExperimentalGetImage private fun analyze(proxy:androidx.camera.core.ImageProxy){if(released||!enabled||!processing.compareAndSet(false,true)){proxy.close();return};val image=proxy.image;if(image==null){processing.set(false);proxy.close();return};scanner.process(InputImage.fromMediaImage(image,proxy.imageInfo.rotationDegrees)).addOnSuccessListener{barcodes->if(released)return@addOnSuccessListener;val now=android.os.SystemClock.elapsedRealtime();barcodes.forEach{barcode->val value=barcode.rawValue.orEmpty();if(seen.accept(value,now,duplicateMillis)){send(mapOf("event" to WireValue.Integer(1),"value" to WireValue.Text(value),"format" to WireValue.Integer(format(barcode.format)),"valueKind" to WireValue.Integer(valueKind(barcode.valueType))))}}}.addOnFailureListener{send(mapOf("event" to WireValue.Integer(3),"message" to WireValue.Text(it.message.orEmpty())))}.addOnCompleteListener{processing.set(false);proxy.close()}}
     private fun options(spec:String):BarcodeScannerOptions{val formats=spec.split(',').mapNotNull{it.toIntOrNull()?.let(::nativeFormat)}.distinct();val builder=BarcodeScannerOptions.Builder();if(formats.isNotEmpty())builder.setBarcodeFormats(formats.first(),*formats.drop(1).toIntArray());return builder.build()}
     private fun nativeFormat(value:Int)=when(value){1->Barcode.FORMAT_QR_CODE;2->Barcode.FORMAT_AZTEC;3->Barcode.FORMAT_DATA_MATRIX;4->Barcode.FORMAT_PDF417;5->Barcode.FORMAT_CODE_128;6->Barcode.FORMAT_CODE_39;7->Barcode.FORMAT_CODE_93;8->Barcode.FORMAT_CODABAR;9->Barcode.FORMAT_EAN_13;10->Barcode.FORMAT_EAN_8;11->Barcode.FORMAT_ITF;12->Barcode.FORMAT_UPC_A;13->Barcode.FORMAT_UPC_E;else->Barcode.FORMAT_QR_CODE}
     private fun format(value:Int)=when(value){Barcode.FORMAT_QR_CODE->1L;Barcode.FORMAT_AZTEC->2;Barcode.FORMAT_DATA_MATRIX->3;Barcode.FORMAT_PDF417->4;Barcode.FORMAT_CODE_128->5;Barcode.FORMAT_CODE_39->6;Barcode.FORMAT_CODE_93->7;Barcode.FORMAT_CODABAR->8;Barcode.FORMAT_EAN_13->9;Barcode.FORMAT_EAN_8->10;Barcode.FORMAT_ITF->11;Barcode.FORMAT_UPC_A->12;Barcode.FORMAT_UPC_E->13;else->14}
@@ -83,12 +87,21 @@ private class ScannerHost(context: Context) : FrameLayout(context) {
     private fun send(values: Map<String, WireValue>) = post {
         if (!released) emitter?.invoke(WireMap.encode(values))
     }
+    private fun unbindCamera() {
+        boundAnalysis?.clearAnalyzer()
+        val owned = listOfNotNull(boundPreview, boundAnalysis)
+        if (owned.isNotEmpty()) provider?.unbind(*owned.toTypedArray())
+        boundPreview = null
+        boundAnalysis = null
+        camera = null
+    }
+
     fun release() {
         if (released) return
         released = true
         ++bindingGeneration
         emitter = null
-        provider?.unbindAll()
+        unbindCamera()
         provider = null
         camera = null
         scanner.close()

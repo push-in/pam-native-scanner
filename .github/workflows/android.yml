@@ -1,0 +1,48 @@
+name: Android scanner contracts
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          repository: push-in/pam-native
+          ref: v1.0.18
+          path: .ci/pam-native
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+      - name: Install Android platform
+        run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+      - name: Download and verify published plugin API
+        working-directory: ${{ runner.temp }}
+        run: |
+          set -euo pipefail
+          base=https://github.com/push-in/pam-native/releases/download/v1.0.18
+          artifact=pam-native-android-plugin-api-1.0.18.aar
+          curl --fail --location --retry 3 --max-time 120 --output "$artifact" "$base/$artifact"
+          curl --fail --location --retry 3 --max-time 120 --output "$artifact.sha256" "$base/$artifact.sha256"
+          sha256sum --check "$artifact.sha256"
+      - name: Compile scanner and run Kotlin contracts
+        run: .ci/pam-native/android/gradlew -p android -PpamPluginApi="$RUNNER_TEMP/pam-native-android-plugin-api-1.0.18.aar" testDebugUnitTest --console plain
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: scanner-android-test-results
+          path: android/build/test-results/
+      - name: Remove generated build outputs
+        if: always()
+        run: rm -rf android/build

@@ -94,6 +94,19 @@ All coded states, kinds, and variants are sequential integer-backed enums. Use e
 - Run `pam doctor`, `pam test`, and a signed release build on every supported platform.
 - Exercise denial, cancellation, backgrounding, process restart, and offline behavior before release.
 
+## Android development checks
+
+The `android` Gradle project compiles the plugin against the published PAM Native
+1.0.18 plugin API. Pass the verified AAR path with `-PpamPluginApi=/path/to/api.aar`
+and run `testDebugUnitTest` using Gradle 9.4.1, JDK 17 and Android SDK 36.
+The Android workflow downloads the official AAR, checks its SHA-256, compiles the
+camera integration and uploads the Kotlin test results.
+
+The current JVM tests cover duplicate suppression, its expiry boundary, clearing
+and bounded retention. They do not certify actual camera permissions, preview
+rendering or asynchronous lifecycle behavior on a device. Those checks and iOS
+parity remain required before publishing the lifecycle changes.
+
 ## Troubleshooting
 
 - **Preview is black:** verify permission, lifecycle visibility, and camera availability.
