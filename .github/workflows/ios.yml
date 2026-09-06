@@ -26,6 +26,10 @@ jobs:
         run: |
           swiftc -swift-version 5 plugin/ios/Sources/ScannerLifetime.swift plugin/ios/Sources/RecentScans.swift plugin/tests/ios-lifetime/main.swift -o "$RUNNER_TEMP/scanner-lifetime"
           "$RUNNER_TEMP/scanner-lifetime"
+      - name: Decode real QR image fixtures with Vision
+        run: |
+          swiftc -swift-version 5 plugin/ios/Sources/QrImageDecoder.swift plugin/tests/ios-images/main.swift -o "$RUNNER_TEMP/scanner-images"
+          "$RUNNER_TEMP/scanner-images"
       - name: Prepare isolated scanner package
         run: |
           mkdir -p certification/Sources/PamScanner

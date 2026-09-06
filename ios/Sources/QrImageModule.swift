@@ -1,7 +1,5 @@
 import Foundation
-import ImageIO
 import PamNative
-import Vision
 
 public final class QrImageModule: NativeModule, @unchecked Sendable {
     private let queue = DispatchQueue(label: "pam.scanner.image", qos: .userInitiated)
@@ -19,24 +17,7 @@ public final class QrImageModule: NativeModule, @unchecked Sendable {
                 let values = try WireMap.decode(payload)
                 guard case let .text(uri)? = values["uri"], uri.utf8.count <= 8192,
                       let url = URL(string: uri), url.isFileURL else { throw ImageError.invalid }
-                let scoped = url.startAccessingSecurityScopedResource()
-                defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-                guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
-                      let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
-                        kCGImageSourceCreateThumbnailFromImageAlways: true,
-                        kCGImageSourceCreateThumbnailWithTransform: true,
-                        kCGImageSourceThumbnailMaxPixelSize: 2048,
-                        kCGImageSourceShouldCacheImmediately: true
-                      ] as CFDictionary) else { throw ImageError.invalid }
-                let request = VNDetectBarcodesRequest()
-                request.symbologies = [.qr]
-                try VNImageRequestHandler(cgImage: image, options: [:]).perform([request])
-                var codes: [String] = []
-                for observation in request.results ?? [] {
-                    guard let value = observation.payloadStringValue, !value.isEmpty, !codes.contains(value) else { continue }
-                    codes.append(value)
-                    if codes.count == 16 { break }
-                }
+                let codes = try QrImageDecoder.decode(url)
                 let json = try JSONSerialization.data(withJSONObject: codes)
                 return try WireMap.encode(["values": .text(String(decoding: json, as: UTF8.self))])
             }
