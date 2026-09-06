@@ -48,3 +48,18 @@ do {
     fatalError("Remote URL must fail without network access")
 } catch {}
 print("PASS: real Vision decoding for single, multiple, oriented, blank and invalid images")
+
+let boundary = try image(["pam-bounded-image"], name: "boundary")
+let handle = try FileHandle(forWritingTo: boundary)
+try handle.truncate(atOffset: UInt64(QrImageDecoder.maximumBytes))
+try handle.close()
+let boundedCodes = try QrImageDecoder.decode(boundary)
+precondition(boundedCodes == ["pam-bounded-image"], "Valid image at byte limit must remain readable")
+let oversized = try FileHandle(forWritingTo: boundary)
+try oversized.truncate(atOffset: UInt64(QrImageDecoder.maximumBytes + 1))
+try oversized.close()
+do {
+    _ = try QrImageDecoder.decode(boundary)
+    fatalError("Encoded image above 32 MiB must fail")
+} catch {}
+print("PASS: encoded QR image byte limit")
