@@ -131,7 +131,7 @@ Security vulnerabilities should be reported through the repository security poli
 
 The completion callback receives a list of `ScanResult` objects: an empty list means no QR was found, and multiple results must be presented for selection rather than silently choosing a payment. Up to 16 distinct QR values are returned. Each result uses `BarcodeFormat::QrCode` and `BarcodeValueKind::Unknown`; contents are never opened or executed automatically.
 
-Images are reduced to at most 2048 pixels on either axis before recognition. This bounds decoded image allocation but can reduce recognition of very small codes in large images. Only one decode runs per module at a time. Callers must ignore stale results after navigation or cancellation. The failure callback receives a generic error, without the local path.
+Images are reduced to at most 2048 pixels on either axis before recognition. Android first snapshots the selected stream into app-private cache with a 32 MiB input limit, then reads bounds and pixels from that same snapshot; the temporary copy is removed on success or failure. This bounds decoded image allocation but can reduce recognition of very small codes in large images. Only one decode runs per module at a time. Callers must ignore stale results after navigation or cancellation. The failure callback receives a generic error, without the local path.
 
 Current validation: Android compilation and sizing tests plus PHP transport contracts. iOS compilation, real image fixtures and physical-device permission/picker/lifecycle tests remain required before release.
 

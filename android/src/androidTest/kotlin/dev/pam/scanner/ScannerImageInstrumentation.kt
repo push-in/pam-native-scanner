@@ -12,6 +12,7 @@ import dev.pam.nativeapp.protocol.WireMap
 import dev.pam.nativeapp.protocol.WireValue
 import org.json.JSONArray
 import java.io.File
+import java.io.RandomAccessFile
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
@@ -23,6 +24,7 @@ class ScannerImageInstrumentation : Instrumentation() {
 
     override fun onStart() {
         val folder = File(targetContext.cacheDir, "scanner-image-contracts").apply { mkdirs() }
+        val previousSnapshots = targetContext.cacheDir.listFiles().orEmpty().filter { it.name.startsWith("pam-qr-") }.map { it.name }.toSet()
         try {
             val module = QrImageModule(targetContext)
             for ((name, expected) in listOf("single.png" to setOf("pam-image-one"), "multiple.png" to setOf("pam-first", "pam-second"))) {
@@ -39,7 +41,12 @@ class ScannerImageInstrumentation : Instrumentation() {
             check(decode(module, "https://example.test/remote.png", failureExpected = true).isEmpty())
             val corrupt = File(folder, "corrupt.png").apply { writeText("not an image") }
             check(decode(module, Uri.fromFile(corrupt).toString(), failureExpected = true).isEmpty())
-            finish(Activity.RESULT_OK, Bundle().apply { putString("stream", "PASS scanner image contracts: ML Kit single, multiple, blank, remote and corrupt images\n") })
+            val oversized = File(folder, "oversized.image")
+            RandomAccessFile(oversized, "rw").use { it.setLength(32L * 1024 * 1024 + 1) }
+            check(decode(module, Uri.fromFile(oversized).toString(), failureExpected = true).isEmpty())
+            val remainingSnapshots = targetContext.cacheDir.listFiles().orEmpty().filter { it.name.startsWith("pam-qr-") }.map { it.name }.toSet()
+            check(remainingSnapshots == previousSnapshots) { "Image snapshots were not removed" }
+            finish(Activity.RESULT_OK, Bundle().apply { putString("stream", "PASS scanner image contracts: ML Kit single, multiple, blank, remote, corrupt and oversized images\n") })
         } catch (error: Throwable) {
             finish(Activity.RESULT_CANCELED, Bundle().apply { putString("stream", "FAIL scanner image contracts: ${error.javaClass.simpleName}: ${error.message}\n") })
         } finally {

@@ -2,6 +2,7 @@ package dev.pam.scanner
 
 import android.content.Context
 import android.graphics.BitmapFactory
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
@@ -15,11 +16,15 @@ import dev.pam.nativeapp.modules.NativeModule
 import dev.pam.nativeapp.protocol.WireMap
 import dev.pam.nativeapp.protocol.WireValue
 import org.json.JSONArray
-import java.util.concurrent.Executors
+import java.io.File
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
-class QrImageModule(private val context: Context) : NativeModule {
-    private val executor = Executors.newSingleThreadExecutor()
+class QrImageModule(context: Context) : NativeModule {
+    private val context = context.applicationContext
+    private val executor = ThreadPoolExecutor(0, 1, 30, TimeUnit.SECONDS, LinkedBlockingQueue())
     private val main = Handler(Looper.getMainLooper())
     private val busy = AtomicBoolean(false)
 
@@ -35,18 +40,7 @@ class QrImageModule(private val context: Context) : NativeModule {
                 require(source.length <= 8192)
                 val uri = Uri.parse(source)
                 require(uri.scheme == "content" || uri.scheme == "file")
-                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                context.contentResolver.openInputStream(uri).use { stream ->
-                    requireNotNull(stream)
-                    BitmapFactory.decodeStream(stream, null, bounds)
-                }
-                val options = BitmapFactory.Options().apply {
-                    inSampleSize = ImageDecodeSize.sample(bounds.outWidth, bounds.outHeight)
-                }
-                val bitmap = context.contentResolver.openInputStream(uri).use { stream ->
-                    requireNotNull(stream)
-                    requireNotNull(BitmapFactory.decodeStream(stream, null, options))
-                }
+                val bitmap = readBitmap(uri)
                 val scanner = try {
                     BarcodeScanning.getClient(BarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE).build())
                 } catch (error: Exception) {
@@ -80,5 +74,23 @@ class QrImageModule(private val context: Context) : NativeModule {
 
     private fun fail(completion: ModuleCompletion, message: String) {
         main.post { completion.complete(ModuleResultStatus.FAILURE, message.toByteArray()) }
+    }
+
+    private fun readBitmap(uri: Uri): Bitmap {
+        val snapshot = File.createTempFile("pam-qr-", ".image", context.cacheDir)
+        try {
+            context.contentResolver.openInputStream(uri).use { input ->
+                requireNotNull(input)
+                snapshot.outputStream().use { ImageInput.copyBounded(input, it) }
+            }
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(snapshot.path, bounds)
+            val options = BitmapFactory.Options().apply {
+                inSampleSize = ImageDecodeSize.sample(bounds.outWidth, bounds.outHeight)
+            }
+            return requireNotNull(BitmapFactory.decodeFile(snapshot.path, options))
+        } finally {
+            snapshot.delete()
+        }
     }
 }
