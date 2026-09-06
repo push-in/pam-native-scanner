@@ -134,3 +134,9 @@ The completion callback receives a list of `ScanResult` objects: an empty list m
 Images are reduced to at most 2048 pixels on either axis before recognition. This bounds decoded image allocation but can reduce recognition of very small codes in large images. Only one decode runs per module at a time. Callers must ignore stale results after navigation or cancellation. The failure callback receives a generic error, without the local path.
 
 Current validation: Android compilation and sizing tests plus PHP transport contracts. iOS compilation, real image fixtures and physical-device permission/picker/lifecycle tests remain required before release.
+
+### Android image instrumentation
+
+The Android CI artifact `scanner-image-instrumentation-apk` includes an instrumentation runner using the real ML Kit module. To execute the locally built APK on an authorized physical device, set `ANDROID_SERIAL` and run `bash scripts/test-images-android.sh` (optionally pass the downloaded APK path). The script refuses emulator serials and the emulator system property. It installs only the scanner test package and checks the instrumentation result. No camera permission is requested by these image-only tests.
+
+The APK was compiled locally; physical execution remains pending. Vision image recognition tests ran successfully on the macOS CI runner; that is separate from Android recognition and device/picker permission validation.

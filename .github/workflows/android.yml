@@ -37,7 +37,11 @@ jobs:
           curl --fail --location --retry 3 --max-time 120 --output "$artifact.sha256" "$base/$artifact.sha256"
           sha256sum --check "$artifact.sha256"
       - name: Compile scanner and run Kotlin contracts
-        run: .ci/pam-native/android/gradlew -p android -PpamPluginApi="$RUNNER_TEMP/pam-native-android-plugin-api-1.0.18.aar" testDebugUnitTest --console plain
+        run: .ci/pam-native/android/gradlew -p android -PpamPluginApi="$RUNNER_TEMP/pam-native-android-plugin-api-1.0.18.aar" testDebugUnitTest assembleDebugAndroidTest --console plain
+      - uses: actions/upload-artifact@v7
+        with:
+          name: scanner-image-instrumentation-apk
+          path: android/build/outputs/apk/androidTest/debug/*.apk
       - uses: actions/upload-artifact@v7
         if: always()
         with:
