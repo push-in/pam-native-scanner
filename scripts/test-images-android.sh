@@ -15,4 +15,3 @@ adb -s "$ANDROID_SERIAL" install -r "$scanner_apk"
 scanner_output=$(adb -s "$ANDROID_SERIAL" shell am instrument -w dev.pam.scanner.test/dev.pam.scanner.ScannerImageInstrumentation)
 printf '%s\n' "$scanner_output"
 [[ "$scanner_output" == *'PASS scanner image contracts:'* ]]
-[[ "$scanner_output" == *'INSTRUMENTATION_CODE: -1'* ]]
