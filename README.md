@@ -64,6 +64,18 @@ return Pam\Native\Scanner\ScannerView::make(
 )->duplicateInterval(1200)->onResult(function (Pam\Native\Scanner\ScanResult $result): void {});
 ```
 
+Declarative `.pam` components can use the same native view directly:
+
+```xml
+<QrScanner
+    facing="1"
+    duplicateInterval="1200"
+    :enabled="$active"
+    @detected="scanned"
+    @failure="scannerFailed"
+/>
+```
+
 The analyzer keeps only the latest frame, runs outside the UI thread, closes every image proxy and suppresses duplicate values for a configurable interval. Camera permission denial and native failures are typed events. Camera usage metadata and Android permission merging are supplied by the plugin.
 
 Platform support: Android API 26+, iOS 15+, PAM Native 0.8.x.

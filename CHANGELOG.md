@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add the declarative `<QrScanner>` template tag with detected and failure events.
+
 ## 0.3.0 - 2026-09-06
 
 - Add lifecycle-safe native camera scanning with bounded duplicate retention.
