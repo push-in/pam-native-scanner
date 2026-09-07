@@ -36,6 +36,11 @@ class ScannerImageInstrumentation : Instrumentation() {
                 context.assets.open(name).use { input -> file.outputStream().use { input.copyTo(it) } }
                 check(decode(module, Uri.fromFile(file).toString()) == expected) { "Unexpected codes in $name" }
             }
+            val privateFolder = File(targetContext.filesDir, "pam-files/imports").apply { mkdirs() }
+            val privateQr = File(privateFolder, "qr pix.png")
+            context.assets.open("single.png").use { input -> privateQr.outputStream().use { input.copyTo(it) } }
+            check(decode(module, "pam-file:///imports/qr%20pix.png") == setOf("pam-image-one"))
+            check(decode(module, "pam-file:///../secret.png", failureExpected = true).isEmpty())
             val blank = File(folder, "blank.png")
             val bitmap = Bitmap.createBitmap(128, 128, Bitmap.Config.ARGB_8888)
             bitmap.eraseColor(Color.WHITE)
@@ -56,6 +61,7 @@ class ScannerImageInstrumentation : Instrumentation() {
             finish(Activity.RESULT_CANCELED, Bundle().apply { putString("stream", "FAIL scanner image contracts: ${error.javaClass.simpleName}: ${error.message}\n") })
         } finally {
             folder.deleteRecursively()
+            File(targetContext.filesDir, "pam-files/imports/qr pix.png").delete()
         }
     }
 

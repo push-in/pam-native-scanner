@@ -136,9 +136,9 @@ This package targets PAM Native `0.8.x`, Android API 26+, and iOS 15+ unless a p
 
 Security vulnerabilities should be reported through the repository security policy or GitHub private vulnerability reporting, not a public issue.
 
-## QR codes in selected images (unreleased)
+## QR codes in selected images
 
-`QrImages::decode($uri, $complete, $failure)` decodes a local image without opening the camera. Android accepts a granted `content://` URI or `file://` URI; iOS accepts a local `file://` URI. Remote URLs are rejected. Obtain access through the platform image/file picker first.
+`QrImages::decode($uri, $complete, $failure)` decodes a local image without opening the camera. It accepts the private `pam-file:///...` URI returned by PAM Native `Files::pick()`. Android also accepts a granted `content://` URI or `file://` URI; iOS accepts a local `file://` URI. Remote URLs are rejected. Obtain access through the platform image/file picker first.
 
 The completion callback receives a list of `ScanResult` objects: an empty list means no QR was found, and multiple results must be presented for selection rather than silently choosing a payment. Up to 16 distinct QR values are returned. Each result uses `BarcodeFormat::QrCode` and `BarcodeValueKind::Unknown`; contents are never opened or executed automatically.
 

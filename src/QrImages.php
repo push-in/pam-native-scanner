@@ -18,7 +18,7 @@ final class QrImages
     /** @param Closure(list<ScanResult>): void $complete @param Closure(string): void $failure */
     public static function decode(string $uri, Closure $complete, Closure $failure): int
     {
-        if (strlen($uri) > 8192 || preg_match('/\A(?:file|content):\/\/[^\x00-\x1f\x7f]+\z/', $uri) !== 1) {
+        if (!self::validLocalUri($uri)) {
             throw new InvalidArgumentException('Select a local image URI.');
         }
         return NativeModules::call('scanner.image', 'decodeQrImage', ['uri' => $uri], static function (NativeModuleResult $result) use ($complete, $failure): void {
@@ -42,5 +42,18 @@ final class QrImages
             }
             $complete($results);
         });
+    }
+
+    private static function validLocalUri(string $uri): bool
+    {
+        if (strlen($uri) > 8192 || preg_match('/\A(?:file|content|pam-file):\/\/[^\x00-\x1f\x7f]+\z/', $uri) !== 1) return false;
+        if (!str_starts_with(strtolower($uri), 'pam-file://')) return true;
+        if (preg_match('/%(?![0-9a-f]{2})/i', $uri) === 1) return false;
+        if (preg_match('/\Apam-file:\/\/\/([^?#]+)\z/i', $uri, $match) !== 1) return false;
+        $segments = explode('/', rawurldecode($match[1]));
+        return $segments !== [''] && array_all($segments, static fn (string $segment): bool =>
+            $segment !== '' && $segment !== '.' && $segment !== '..'
+            && !str_contains($segment, '\\') && preg_match('/[\x00-\x1f\x7f]/', $segment) !== 1
+        );
     }
 }
