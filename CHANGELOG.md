@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.2 - 2026-09-06
+
 - Decode QR images selected with PAM Native `Files::pick()` through bounded,
   traversal-safe `pam-file:///...` references on Android and iOS.
 
