@@ -13,7 +13,9 @@ $test('image decoding accepts local sources and preserves every detected QR', st
     $transport = new class implements NativeModuleTransport {
         public function invoke(int $requestId, string $module, string $method, string $payload, Closure $complete): void
         {
-            if ($module !== 'scanner.image' || $method !== 'decodeQrImage' || Wire::decodeMap($payload)['uri'] !== 'file:///tmp/image.png') {
+            $uri = Wire::decodeMap($payload)['uri'] ?? null;
+            if ($module !== 'scanner.image' || $method !== 'decodeQrImage'
+                || !in_array($uri, ['file:///tmp/image.png', 'pam-file:///imports/qr%20pix.png'], true)) {
                 throw new RuntimeException('Incorrect image request');
             }
             $complete(ModuleResultStatus::Success, Wire::map(['values' => json_encode(['first', 'second'], JSON_THROW_ON_ERROR)]));
@@ -26,10 +28,17 @@ $test('image decoding accepts local sources and preserves every detected QR', st
         if (count($results ?? []) !== 2 || $results[0]->value !== 'first' || $results[1]->value !== 'second' || $results[0]->format !== BarcodeFormat::QrCode) {
             throw new RuntimeException('QR results were lost');
         }
+        QrImages::decode('pam-file:///imports/qr%20pix.png', static function (): void {}, static function (): void { throw new RuntimeException('Private PAM file rejected'); });
         try {
             QrImages::decode('https://example.test/image.png', static function (): void {}, static function (): void {});
             throw new RuntimeException('Remote image accepted');
         } catch (InvalidArgumentException) {}
+        foreach (['pam-file:///', 'pam-file:///../secret.png', 'pam-file:///images/%00.png'] as $invalid) {
+            try {
+                QrImages::decode($invalid, static function (): void {}, static function (): void {});
+                throw new RuntimeException('Unsafe private image accepted');
+            } catch (InvalidArgumentException) {}
+        }
     } finally {
         NativeModules::useTransport(null);
     }

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Decode QR images selected with PAM Native `Files::pick()` through bounded,
+  traversal-safe `pam-file:///...` references on Android and iOS.
+
 ## 0.3.1 - 2026-09-06
 
 - Add the declarative `<QrScanner>` template tag with detected and failure events.
