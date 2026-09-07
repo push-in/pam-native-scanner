@@ -7,4 +7,5 @@ $tests=[];$test=static function(string$n,Closure$f)use(&$tests):void{$tests[$n]=
 $test('builds a typed native scanner',static function():void{$scanner=ScannerView::make(BarcodeFormat::QrCode,BarcodeFormat::Ean13)->facing(CameraFacing::Back)->torch()->duplicateInterval(800);if(!$scanner->toElement()instanceof Element)throw new RuntimeException('not renderable');});
 $test('scanner builder remains immutable',static function():void{$base=ScannerView::make();$changed=$base->torch();if($base===$changed)throw new RuntimeException('builder mutated');});
 $test('all coded variants are sequential integers',static function():void{foreach([BarcodeFormat::cases(),CameraFacing::cases()]as$cases){$values=array_map(static fn($c)=>$c->value,$cases);if($values!==range(1,count($values)))throw new RuntimeException('non-sequential enum');}});
+require __DIR__.'/qr-images.php';
 $failed=0;foreach($tests as$n=>$f){try{$f();fwrite(STDOUT,"PASS $n\n");}catch(Throwable$e){$failed++;fwrite(STDERR,"FAIL $n: {$e->getMessage()}\n");}}fwrite(STDOUT,count($tests)." tests, $failed failures\n");exit($failed?1:0);

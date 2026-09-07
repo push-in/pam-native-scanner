@@ -1,0 +1,64 @@
+name: iOS scanner contracts
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: plugin
+      - uses: actions/checkout@v7
+        with:
+          repository: push-in/pam-native
+          ref: v1.0.18
+          path: sdk
+      - name: Test concurrent scanner disposal
+        run: |
+          swiftc -swift-version 5 plugin/ios/Sources/ScannerLifetime.swift plugin/ios/Sources/RecentScans.swift plugin/tests/ios-lifetime/main.swift -o "$RUNNER_TEMP/scanner-lifetime"
+          "$RUNNER_TEMP/scanner-lifetime"
+      - name: Decode real QR image fixtures with Vision
+        run: |
+          swiftc -swift-version 5 plugin/ios/Sources/QrImageDecoder.swift plugin/tests/ios-images/main.swift -o "$RUNNER_TEMP/scanner-images"
+          "$RUNNER_TEMP/scanner-images"
+      - name: Prepare isolated scanner package
+        run: |
+          mkdir -p certification/Sources/PamScanner
+          cp plugin/ios/Sources/*.swift certification/Sources/PamScanner/
+          cp -R sdk/ios/Sources/PamNativeTestRuntimeShims certification/Sources/RuntimeShims
+          cat > certification/Package.swift <<'SWIFT'
+          // swift-tools-version: 5.9
+          import PackageDescription
+          let package = Package(
+              name: "PamScanner",
+              platforms: [.iOS(.v15)],
+              products: [.library(name: "PamScanner", targets: ["PamScanner"])],
+              dependencies: [.package(path: "../sdk/ios")],
+              targets: [
+                  .target(name: "PamScanner", dependencies: [
+                      .product(name: "PamNative", package: "ios"), "RuntimeShims"
+                  ], linkerSettings: [.linkedFramework("AVFoundation"), .linkedFramework("Vision")]),
+                  .target(name: "RuntimeShims", publicHeadersPath: "include")
+              ],
+              swiftLanguageVersions: [.v5]
+          )
+          SWIFT
+      - name: Compile scanner against published SDK
+        working-directory: certification
+        run: >-
+          xcodebuild -scheme PamScanner -configuration Release
+          -destination 'generic/platform=iOS Simulator'
+          -derivedDataPath "$RUNNER_TEMP/ScannerBuild"
+          CODE_SIGNING_ALLOWED=NO build
+      - name: Remove generated build outputs
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/ScannerBuild"

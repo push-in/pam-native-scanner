@@ -1,0 +1,5 @@
+/vendor/
+/.ci/
+/android/.gradle/
+/android/build/
+/android/local.properties
