@@ -12,6 +12,7 @@ test -f "$scanner_apk"
 test "$(adb -s "$ANDROID_SERIAL" get-state)" = device
 test "$(adb -s "$ANDROID_SERIAL" shell getprop ro.kernel.qemu | tr -d '\r')" != 1
 adb -s "$ANDROID_SERIAL" install -r "$scanner_apk"
+adb -s "$ANDROID_SERIAL" shell pm grant dev.pam.scanner.test android.permission.CAMERA
 scanner_output=$(adb -s "$ANDROID_SERIAL" shell am instrument -w dev.pam.scanner.test/dev.pam.scanner.ScannerImageInstrumentation)
 printf '%s\n' "$scanner_output"
-[[ "$scanner_output" == *'PASS scanner image contracts:'* ]]
+[[ "$scanner_output" == *'PASS scanner contracts: ML Kit images and physical camera lifecycle'* ]]

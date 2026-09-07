@@ -102,10 +102,9 @@ and run `testDebugUnitTest` using Gradle 9.4.1, JDK 17 and Android SDK 36.
 The Android workflow downloads the official AAR, checks its SHA-256, compiles the
 camera integration and uploads the Kotlin test results.
 
-The current JVM tests cover duplicate suppression, its expiry boundary, clearing
-and bounded retention. They do not certify actual camera permissions, preview
-rendering or asynchronous lifecycle behavior on a device. Those checks and iOS
-parity remain required before publishing the lifecycle changes.
+The JVM tests cover duplicate suppression, its expiry boundary, clearing and
+bounded retention. The physical Android harness verifies camera permission,
+preview streaming, disable/enable, background/foreground recovery and release.
 
 ## Troubleshooting
 
@@ -133,10 +132,14 @@ The completion callback receives a list of `ScanResult` objects: an empty list m
 
 Images are reduced to at most 2048 pixels on either axis before recognition. Android first snapshots the selected stream into app-private cache with a 32 MiB input limit, then reads bounds and pixels from that same snapshot; the temporary copy is removed on success or failure. This bounds decoded image allocation but can reduce recognition of very small codes in large images. Only one decode runs per module at a time. Callers must ignore stale results after navigation or cancellation. The failure callback receives a generic error, without the local path.
 
-Current validation: Android compilation and sizing tests plus PHP transport contracts. iOS compilation, real image fixtures and physical-device permission/picker/lifecycle tests remain required before release.
+Current validation: PHP transport contracts, Android compilation and sizing tests,
+real image fixtures on Android and iOS, and Android camera lifecycle on a physical
+Samsung device. Application picker UX still requires validation in the consuming app.
 
 ### Android image instrumentation
 
 The Android CI artifact `scanner-image-instrumentation-apk` includes an instrumentation runner using the real ML Kit module. To execute the locally built APK on an authorized physical device, set `ANDROID_SERIAL` and run `bash scripts/test-images-android.sh` (optionally pass the downloaded APK path). The script refuses emulator serials and the emulator system property. It installs only the scanner test package and checks the instrumentation result. No camera permission is requested by these image-only tests.
 
-The APK was compiled locally; physical execution remains pending. Vision image recognition tests ran successfully on the macOS CI runner; that is separate from Android recognition and device/picker permission validation.
+The harness has passed on a physical Samsung SM-G973F: real ML Kit recognition,
+permission grant, preview streaming, disable/enable, background/foreground and
+release. Vision image recognition also passes with real fixtures on the macOS CI runner.
