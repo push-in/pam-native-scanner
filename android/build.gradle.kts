@@ -14,6 +14,7 @@ android {
 }
 
 dependencies {
+    implementation("com.google.zxing:core:3.5.4")
     compileOnly(files(providers.gradleProperty("pamPluginApi").get()))
     implementation("androidx.camera:camera-camera2:1.6.1")
     implementation("androidx.camera:camera-lifecycle:1.6.1")

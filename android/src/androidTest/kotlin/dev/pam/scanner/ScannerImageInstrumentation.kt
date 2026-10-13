@@ -21,16 +21,23 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 class ScannerImageInstrumentation : Instrumentation() {
+    private var generationOnly = false
     override fun onCreate(arguments: Bundle?) {
+        generationOnly = arguments?.getString("generationOnly") == "true"
         super.onCreate(arguments)
         start()
     }
 
     override fun onStart() {
         val folder = File(targetContext.cacheDir, "scanner-image-contracts").apply { mkdirs() }
-        val previousSnapshots = targetContext.cacheDir.listFiles().orEmpty().filter { it.name.startsWith("pam-qr-") }.map { it.name }.toSet()
+        val previousSnapshots = targetContext.cacheDir.listFiles().orEmpty().filter { it.isFile && it.name.startsWith("pam-qr-") }.map { it.name }.toSet()
         try {
             val module = QrImageModule(targetContext)
+            verifyGeneration(module)
+            if (generationOnly) {
+                finish(Activity.RESULT_OK, Bundle().apply { putString("stream", "PASS scanner QR generation: roundtrip bounds cleanup\n") })
+                return
+            }
             for ((name, expected) in listOf("single.png" to setOf("pam-image-one"), "multiple.png" to setOf("pam-first", "pam-second"))) {
                 val file = File(folder, name)
                 context.assets.open(name).use { input -> file.outputStream().use { input.copyTo(it) } }
@@ -53,7 +60,7 @@ class ScannerImageInstrumentation : Instrumentation() {
             val oversized = File(folder, "oversized.image")
             RandomAccessFile(oversized, "rw").use { it.setLength(32L * 1024 * 1024 + 1) }
             check(decode(module, Uri.fromFile(oversized).toString(), failureExpected = true).isEmpty())
-            val remainingSnapshots = targetContext.cacheDir.listFiles().orEmpty().filter { it.name.startsWith("pam-qr-") }.map { it.name }.toSet()
+            val remainingSnapshots = targetContext.cacheDir.listFiles().orEmpty().filter { it.isFile && it.name.startsWith("pam-qr-") }.map { it.name }.toSet()
             check(remainingSnapshots == previousSnapshots) { "Image snapshots were not removed" }
             verifyPhysicalCameraLifecycle()
             finish(Activity.RESULT_OK, Bundle().apply { putString("stream", "PASS scanner contracts: ML Kit images and physical camera lifecycle\n") })
@@ -63,6 +70,38 @@ class ScannerImageInstrumentation : Instrumentation() {
             folder.deleteRecursively()
             File(targetContext.filesDir, "pam-files/imports/qr pix.png").delete()
         }
+    }
+
+    private fun verifyGeneration(module: QrImageModule) {
+        for (text in listOf("https://zechat.com.br/@teste", "otpauth://totp/Zé?secret=JBSWY3DPEHPK3PXP&issuer=ZeChat", "Olá 👋")) {
+            val uri = QrImageGenerator.generate(targetContext.cacheDir, text, 440)
+            val file = File(requireNotNull(Uri.parse(uri).path))
+            check(file.isFile)
+            val options = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            android.graphics.BitmapFactory.decodeFile(file.path, options)
+            check(options.outWidth == 440 && options.outHeight == 440)
+            check(decode(module, uri) == setOf(text)) { "Generated QR did not roundtrip" }
+            QrImageGenerator.release(targetContext.cacheDir, uri)
+            check(!file.exists())
+        }
+        for ((text, pixels) in listOf("" to 256, "x".repeat(2049) to 256, "ok" to 127, "ok" to 1025)) {
+            var rejected = false
+            try { QrImageGenerator.generate(targetContext.cacheDir, text, pixels) } catch (_: IllegalArgumentException) { rejected = true }
+            check(rejected)
+        }
+        val cache = File(targetContext.cacheDir, "pam-qr-generated")
+        val generated = (1..20).map { QrImageGenerator.generate(targetContext.cacheDir, "bounded-$it", 128) }
+        check(cache.listFiles().orEmpty().count { it.isFile } <= 16) { "QR cache grew without bound" }
+        generated.forEach { QrImageGenerator.release(targetContext.cacheDir, it) }
+        check(cache.listFiles().orEmpty().isEmpty())
+        val large = QrImageGenerator.generate(targetContext.cacheDir, "maximum", 1024)
+        QrImageGenerator.release(targetContext.cacheDir, large)
+        val foreign = File(targetContext.cacheDir, "qr-foreign.png").apply { writeText("keep") }
+        try {
+            var rejected = false
+            try { QrImageGenerator.release(targetContext.cacheDir, Uri.fromFile(foreign).toString()) } catch (_: IllegalArgumentException) { rejected = true }
+            check(rejected && foreign.exists())
+        } finally { foreign.delete() }
     }
 
     @ExperimentalGetImage

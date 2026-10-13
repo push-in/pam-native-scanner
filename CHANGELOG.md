@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 - 2026-10-13
+
+- Add offline QR PNG generation and scoped temporary-file release for Android and iOS. Enforce payload/dimension limits, bounded cache cleanup and roundtrip contract tests.
+
 
 ## 0.3.2 - 2026-09-06
 

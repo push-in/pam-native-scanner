@@ -17,25 +17,41 @@ import dev.pam.nativeapp.protocol.WireMap
 import dev.pam.nativeapp.protocol.WireValue
 import org.json.JSONArray
 import java.io.File
-import java.util.concurrent.LinkedBlockingQueue
-import java.util.concurrent.ThreadPoolExecutor
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 class QrImageModule(context: Context) : NativeModule {
     private val context = context.applicationContext
-    private val executor = ThreadPoolExecutor(0, 1, 30, TimeUnit.SECONDS, LinkedBlockingQueue())
+    private val executor = QrWorkQueue()
     private val main = Handler(Looper.getMainLooper())
     private val busy = AtomicBoolean(false)
 
     override fun invoke(method: String, payload: ByteArray, completion: ModuleCompletion) {
-        if (method != "decodeQrImage" || !busy.compareAndSet(false, true)) {
+        if (method == "releaseQrImage") {
+            if (!executor.submit {
+                try {
+                    val values = WireMap.decode(payload)
+                    QrImageGenerator.release(context.cacheDir, (values["uri"] as? WireValue.Text)?.value ?: error("Missing URI"))
+                    main.post { completion.complete(ModuleResultStatus.SUCCESS, WireMap.encode(emptyMap())) }
+                } catch (_: Exception) { fail(completion, "Unable to release the QR image.") }
+            }) fail(completion, "QR image queue is busy.")
+            return
+        }
+        if (method !in setOf("decodeQrImage", "generateQrImage", "releaseQrImage") || !busy.compareAndSet(false, true)) {
             fail(completion, "QR image decoder is unavailable or busy.")
             return
         }
-        executor.execute {
+        if (!executor.submit {
             try {
                 val values = WireMap.decode(payload)
+                if (method == "generateQrImage") {
+                    val text = (values["text"] as? WireValue.Text)?.value ?: error("Missing text")
+                    val pixels = (values["pixels"] as? WireValue.Integer)?.value ?: error("Missing size")
+                    require(pixels in 128L..1024L)
+                    val uri = QrImageGenerator.generate(context.cacheDir, text, pixels.toInt())
+                    busy.set(false)
+                    main.post { completion.complete(ModuleResultStatus.SUCCESS, WireMap.encode(mapOf("uri" to WireValue.Text(uri)))) }
+                    return@submit
+                }
                 val source = (values["uri"] as? WireValue.Text)?.value ?: error("Missing image URI")
                 require(source.length <= 8192)
                 val uri = Uri.parse(source)
@@ -69,6 +85,9 @@ class QrImageModule(context: Context) : NativeModule {
                 busy.set(false)
                 fail(completion, "Unable to decode the selected image.")
             }
+        }) {
+            busy.set(false)
+            fail(completion, "QR image queue is busy.")
         }
     }
 

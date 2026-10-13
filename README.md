@@ -155,3 +155,19 @@ The Android CI artifact `scanner-image-instrumentation-apk` includes an instrume
 The harness has passed on a physical Samsung SM-G973F: real ML Kit recognition,
 permission grant, preview streaming, disable/enable, background/foreground and
 release. Vision image recognition also passes with real fixtures on the macOS CI runner.
+
+### Generate a QR image
+
+```php
+QrImages::generate('https://example.test/profile', 440,
+    complete: function (string $uri): void {
+        // Display with Image::source($uri). Release when the image leaves the screen.
+        QrImages::release($uri);
+    },
+    failure: function (string $message): void { /* Show a text/link fallback. */ },
+);
+```
+
+Generation works offline: ZXing Core 3.5.4 on Android and Core Image on iOS. The payload is UTF-8, 1–2048 bytes, without NUL; dimensions are 128–1024 pixels. The PNG has a white background, medium error correction and a four-module quiet zone. A size too small for the payload fails instead of cropping the QR. Files live in the private `pam-qr-generated` cache directory. Call `release` on replacement/unmount, including a late result after the owner unmounted. It only accepts files generated in that directory. Interrupted-process leftovers are bounded to 16 files and pruned after 24 hours on the next generation.
+
+Android generation instrumentation can run without camera permission using `-e generationOnly true` with `dev.pam.scanner.ScannerImageInstrumentation`: validates URL/otpauth/Unicode roundtrip via ML Kit, dimensions, bounds and cleanup. The existing full image/camera suite remains available without the argument. iOS generation test source is `tests/ios-generation/main.swift`, compiled with `QrImageGenerator.swift` and `QrImageDecoder.swift` in an iOS test target; it covers the same roundtrip, dimensions, bounds and cleanup. iOS requires Apple SDK execution.

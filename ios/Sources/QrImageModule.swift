@@ -4,17 +4,40 @@ import PamNative
 public final class QrImageModule: NativeModule, @unchecked Sendable {
     private let queue = DispatchQueue(label: "pam.scanner.image", qos: .userInitiated)
     private let available = DispatchSemaphore(value: 1)
+    private let releaseSlots = DispatchSemaphore(value: 8)
 
     public init() {}
 
     public func invoke(method: String, payload: Data, completion: @escaping ModuleCompletion) {
-        guard method == "decodeQrImage", available.wait(timeout: .now()) == .success else {
+        if method == "releaseQrImage" {
+            guard releaseSlots.wait(timeout: .now()) == .success else {
+                completion(.failure, Data("QR image queue is busy.".utf8))
+                return
+            }
+            queue.async {
+                defer { self.releaseSlots.signal() }
+                do {
+                    let values = try WireMap.decode(payload)
+                    guard case let .text(uri)? = values["uri"] else { throw ImageError.invalid }
+                    try QrImageGenerator.release(uri)
+                    let result = try WireMap.encode([:])
+                    DispatchQueue.main.async { completion(.success, result) }
+                } catch { DispatchQueue.main.async { completion(.failure, Data("Unable to release the QR image.".utf8)) } }
+            }
+            return
+        }
+        guard ["decodeQrImage", "generateQrImage", "releaseQrImage"].contains(method), available.wait(timeout: .now()) == .success else {
             completion(.failure, Data("QR image decoder is unavailable or busy.".utf8))
             return
         }
         queue.async {
             let result: Result<Data, Error> = Result {
                 let values = try WireMap.decode(payload)
+                if method == "generateQrImage" {
+                    guard case let .text(text)? = values["text"], case let .integer(pixels)? = values["pixels"], (128...1024).contains(pixels) else { throw ImageError.invalid }
+                    let uri = try QrImageGenerator.generate(text: text, pixels: Int(pixels))
+                    return try WireMap.encode(["uri": .text(uri)])
+                }
                 guard case let .text(uri)? = values["uri"], uri.utf8.count <= 8192 else {
                     throw ImageError.invalid
                 }

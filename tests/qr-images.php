@@ -68,3 +68,31 @@ $test('image decoding rejects malformed native results and reports missing QR as
         NativeModules::useTransport(null);
     }
 });
+
+$test('generation validates bounds, preserves payload, rejects foreign files and releases owned PNG', static function (): void {
+    $transport = new class implements NativeModuleTransport {
+        public array $calls = [];
+        public string $uri = 'file:///cache/pam-qr-generated/qr-123abc.png';
+        public function invoke(int $requestId, string $module, string $method, string $payload, Closure $complete): void {
+            $this->calls[] = [$module, $method, Wire::decodeMap($payload)];
+            $complete(ModuleResultStatus::Success, Wire::map(['uri' => $this->uri]));
+        }
+    };
+    NativeModules::useTransport($transport);
+    try {
+        $output = null;
+        QrImages::generate('otpauth://totp/Zé?secret=TEST', 440, static function (string $uri) use (&$output): void { $output = $uri; }, static function (): void { throw new RuntimeException('Unexpected failure'); });
+        if ($output !== $transport->uri || $transport->calls[0] != ['scanner.image', 'generateQrImage', ['text' => 'otpauth://totp/Zé?secret=TEST', 'pixels' => 440]]) throw new RuntimeException('Lost payload or size');
+        QrImages::release($output);
+        if ($transport->calls[1][1] !== 'releaseQrImage') throw new RuntimeException('No cleanup');
+        foreach ([['', 256], [str_repeat('a', 2049), 256], ["x\0y", 256], ["\xff", 256], ['ok', 127], ['ok', 1025]] as [$text, $pixels]) {
+            try { QrImages::generate($text, $pixels, static function (): void {}, static function (): void {}); throw new RuntimeException('Invalid generation accepted'); } catch (InvalidArgumentException) {}
+        }
+        foreach (['file:///cache/image.png', 'https://host/pam-qr-generated/qr-ab.png', 'file:///cache/pam-qr-generated/qr-ab.png?x'] as $uri) {
+            try { QrImages::release($uri); throw new RuntimeException('Foreign file accepted'); } catch (InvalidArgumentException) {}
+        }
+        $transport->uri = 'https://example.test/image.png'; $failed = false;
+        QrImages::generate('ok', 256, static function (): void { throw new RuntimeException('Remote result accepted'); }, static function () use (&$failed): void { $failed = true; });
+        if (!$failed) throw new RuntimeException('Missing failure');
+    } finally { NativeModules::useTransport(null); }
+});
