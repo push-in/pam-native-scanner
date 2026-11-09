@@ -1,67 +1,52 @@
-<!-- pam:product-page:start -->
 <div align="center">
 
-# PAM Native Scanner
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/banner-dark.svg">
+  <img src=".github/assets/banner-light.svg" width="880" alt="pam-native-scanner: Real-time QR and barcode scanning with native camera previews for PAM Native.">
+</picture>
 
-**Production barcode scanning as a focused native capability.**
+**Real-time QR and barcode scanning with native camera previews.**<br>
+CameraX and ML Kit on Android, AVFoundation and Vision on iOS, plus offline QR decoding and generation for images.
 
-Combine a native camera preview with bounded QR and barcode results, deduplication, and lifecycle-safe sessions.
+[![Packagist](https://img.shields.io/packagist/v/pushinbr/pam-native-scanner?label=packagist&color=f53003)](https://packagist.org/packages/pushinbr/pam-native-scanner)
+[![Latest release](https://img.shields.io/github/v/release/push-in/pam-native-scanner?label=release&color=e3a008)](https://github.com/push-in/pam-native-scanner/releases/latest)
+![PHP 8.5](https://img.shields.io/badge/php-8.5-777bb4)
+[![CI](https://img.shields.io/github/actions/workflow/status/push-in/pam-native-scanner/ci.yml?branch=main&label=ci)](https://github.com/push-in/pam-native-scanner/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/push-in/pam-native-scanner?color=1f6feb)](LICENSE)
 
-[![Latest version](https://img.shields.io/packagist/v/pushinbr/pam-native-scanner?style=flat-square&label=stable)](https://packagist.org/packages/pushinbr/pam-native-scanner)
-[![CI](https://img.shields.io/github/actions/workflow/status/push-in/pam-native-scanner/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/push-in/pam-native-scanner/actions)
-![PHP](https://img.shields.io/badge/PHP-8.5-777BB4?style=flat-square&logo=php&logoColor=white)
-![Android](https://img.shields.io/badge/Android-API%2026%2B-3DDC84?style=flat-square&logo=android&logoColor=white)
-![iOS](https://img.shields.io/badge/iOS-15%2B-000000?style=flat-square&logo=apple&logoColor=white)
-
-**[Documentation](https://push-in.github.io/pam-docs/native/overview/) · [Quick start](#quick-start) · [What you can build](#what-you-can-build) · [PAM ecosystem](https://push-in.github.io/pam-docs/ecosystem/) · [Issues](https://github.com/push-in/pam-native-scanner/issues)**
+[Install](#install) · [Quick example](#quick-example) · [Platforms](#platform-support) · [Permissions](#requirements) · [Docs](#docs) · [Issues](https://github.com/push-in/pam-native-scanner/issues)
 
 </div>
 
----
+<a id="install"></a>
+## <picture><img src=".github/assets/icons/terminal.svg" width="22" height="22" alt=""></picture> Install
 
-## Why PAM Native Scanner
+Inside a PAM Native project, add only this capability:
 
-Combine a native camera preview with bounded QR and barcode results, deduplication, and lifecycle-safe sessions. The public API is strictly typed for PHP 8.5; expensive or frame-sensitive work stays in Rust or the platform SDK instead of crossing the application boundary every frame.
-
-| | |
-| --- | --- |
-| **Best for** | A focused capability you can add to any PAM Native application |
-| **Native path** | ML Kit · VisionKit/Vision |
-| **Application model** | Composer package + generated native integration |
-| **Design rule** | Independent module; no feed, vertical, or application template bundled |
-
-## What you can build
-
-- Retail and warehouse scanning
-- Tickets, access, and identity flows
-- QR onboarding and payment payloads
-
-## Quick start
-
-Already have a PAM Native project? Add only this capability:
-
-```bash
+```sh
 pam composer require pushinbr/pam-native-scanner
 pam doctor --fix
 ```
 
-New to PAM? Follow the **[five-minute PAM Native setup](https://push-in.github.io/pam-docs/native/overview/)** once, then return here. Your application stays a normal Composer project with a committed lockfile.
-<!-- pam:product-page:end -->
+New to PAM? Create a project with `pam init my-app --template native` (see the [PAM Native overview](https://push-in.github.io/pam-docs/native/overview/)), then come back here. Composer owns the manifest and the lockfile; `pam composer` runs it on PAM's verified PHP runtime.
 
-## See it in action
-
-Real-time QR and barcode scanning with native previews. Android uses CameraX `1.6.1` and the bundled ML Kit model `17.3.0`, so first use does not depend on a model download. iOS uses AVFoundation and Vision.
-
-```bash
-pam add scanner
-pam doctor
-```
+<a id="quick-example"></a>
+## <picture><img src=".github/assets/icons/code.svg" width="22" height="22" alt=""></picture> Quick example
 
 ```php
-return Pam\Native\Scanner\ScannerView::make(
-    Pam\Native\Scanner\BarcodeFormat::QrCode,
-    Pam\Native\Scanner\BarcodeFormat::Ean13,
-)->duplicateInterval(1200)->onResult(function (Pam\Native\Scanner\ScanResult $result): void {});
+<?php
+
+declare(strict_types=1);
+
+use Pam\Native\Scanner\BarcodeFormat;
+use Pam\Native\Scanner\ScannerView;
+use Pam\Native\Scanner\ScanResult;
+
+return ScannerView::make(BarcodeFormat::QrCode, BarcodeFormat::Ean13)
+    ->duplicateInterval(1200)
+    ->onResult(function (ScanResult $result): void {
+        // Validate the value before navigation, network calls or payments.
+    });
 ```
 
 Declarative `.pam` components can use the same native view directly:
@@ -76,87 +61,31 @@ Declarative `.pam` components can use the same native view directly:
 />
 ```
 
-The analyzer keeps only the latest frame, runs outside the UI thread, closes every image proxy and suppresses duplicate values for a configurable interval. Camera permission denial and native failures are typed events. Camera usage metadata and Android permission merging are supplied by the plugin.
+The analyzer keeps only the latest frame, runs outside the UI thread, closes every image proxy and suppresses duplicate values for a configurable interval. Camera permission denial and native failures are typed events. Android uses the bundled ML Kit model, so first use does not depend on a model download.
 
-Platform support: Android API 26+, iOS 15+, PAM Native 0.8.x.
+<a id="platform-support"></a>
+## <picture><img src=".github/assets/icons/grid.svg" width="22" height="22" alt=""></picture> Platform support
 
-## What installation does
+| Platform | Support | Notes |
+| --- | --- | --- |
+| Android | API 26+ | CameraX 1.6.1, ML Kit barcode scanning 17.3.0 (bundled), ZXing Core 3.5.4 |
+| iOS | 15.0+ | AVFoundation, Vision, ImageIO, Core Image |
+| PAM Native | 0.8.0 to < 2.0.0 | From `pam-native.plugin.json`; PHP 8.5+ |
 
-`pam add scanner` resolves the official compatible package, performs a non-mutating Composer preflight, updates the normal `composer.json` and `composer.lock`, refreshes generated native integration when required, and leaves the project ready for `pam doctor` validation.
+<a id="requirements"></a>
+## <picture><img src=".github/assets/icons/shield.svg" width="22" height="22" alt=""></picture> Permissions and requirements
 
-Use `pam packages` to inspect availability and `pam remove scanner` to uninstall the capability safely. Direct Composer commands are an advanced interoperability path; PAM is the supported application workflow.
-
-## API guide
-
-| API | Responsibility |
+| Platform | Declared by the plugin |
 | --- | --- |
-| `ScannerView` | Render the native preview and configure scanning. |
-| `BarcodeFormat` | Select only the barcode symbologies the product needs. |
-| `ScanResult` | Receive value, format, and normalized scan data. |
-| `ScannerEventKind` | Handle typed results, permission failures, and native errors. |
-| `CameraFacing` | Select front or back camera. |
+| Android | `android.permission.CAMERA` |
+| iOS | `NSCameraUsageDescription` ("Scan QR codes and barcodes.") |
 
-All coded states, kinds, and variants are sequential integer-backed enums. Use enum cases in application code; do not depend on raw wire numbers.
+Camera usage metadata and Android permission merging are supplied by the plugin. Request camera permission before mounting an enabled scanner. Decoding and generating QR images (`QrImages`) does not need the camera permission.
 
-## Production checklist
+<a id="qr-codes-in-images"></a>
+## <picture><img src=".github/assets/icons/qr.svg" width="22" height="22" alt=""></picture> QR codes in images
 
-- Request camera permission before mounting an enabled scanner.
-- Restrict formats to improve speed and reduce false positives.
-- Validate scanned values before navigation, network calls, or payment actions.
-- Run `pam doctor`, `pam test`, and a signed release build on every supported platform.
-- Exercise denial, cancellation, backgrounding, process restart, and offline behavior before release.
-
-## Android development checks
-
-The `android` Gradle project compiles the plugin against the published PAM Native
-1.0.18 plugin API. Pass the verified AAR path with `-PpamPluginApi=/path/to/api.aar`
-and run `testDebugUnitTest` using Gradle 9.4.1, JDK 17 and Android SDK 36.
-The Android workflow downloads the official AAR, checks its SHA-256, compiles the
-camera integration and uploads the Kotlin test results.
-
-The JVM tests cover duplicate suppression, its expiry boundary, clearing and
-bounded retention. The physical Android harness verifies camera permission,
-preview streaming, disable/enable, background/foreground recovery and release.
-
-## Troubleshooting
-
-- **Preview is black:** verify permission, lifecycle visibility, and camera availability.
-- **The same code fires repeatedly:** increase `duplicateInterval()`.
-- **A format is never recognized:** include it explicitly in `make()`.
-- **Native integration is stale:** run `pam doctor --fix`, rebuild the native host, and inspect the first reported diagnostic.
-
-## Compatibility and support
-
-This package targets PAM Native `0.8.x`, Android API 26+, and iOS 15+ unless a platform-specific section above states a stricter requirement. Platform SDKs, credentials, entitlements, physical hardware, and store configuration remain application responsibilities.
-
-- [PAM documentation](https://push-in.github.io/pam-docs/introduction/)
-- [PAM Native overview](https://push-in.github.io/pam-docs/native/overview/)
-- [Plugin and native capability model](https://push-in.github.io/pam-docs/native/plugins/)
-- [Report an issue](https://github.com/push-in/pam-native-scanner/issues)
-
-Security vulnerabilities should be reported through the repository security policy or GitHub private vulnerability reporting, not a public issue.
-
-## QR codes in selected images
-
-`QrImages::decode($uri, $complete, $failure)` decodes a local image without opening the camera. It accepts the private `pam-file:///...` URI returned by PAM Native `Files::pick()`. Android also accepts a granted `content://` URI or `file://` URI; iOS accepts a local `file://` URI. Remote URLs are rejected. Obtain access through the platform image/file picker first.
-
-The completion callback receives a list of `ScanResult` objects: an empty list means no QR was found, and multiple results must be presented for selection rather than silently choosing a payment. Up to 16 distinct QR values are returned. Each result uses `BarcodeFormat::QrCode` and `BarcodeValueKind::Unknown`; contents are never opened or executed automatically.
-
-Images are reduced to at most 2048 pixels on either axis before recognition. Android first snapshots the selected stream into app-private cache with a 32 MiB input limit, then reads bounds and pixels from that same snapshot; the temporary copy is removed on success or failure. This bounds decoded image allocation but can reduce recognition of very small codes in large images. Only one decode runs per module at a time. Callers must ignore stale results after navigation or cancellation. The failure callback receives a generic error, without the local path.
-
-Current validation: PHP transport contracts, Android compilation and sizing tests,
-real image fixtures on Android and iOS, and Android camera lifecycle on a physical
-Samsung device. Application picker UX still requires validation in the consuming app.
-
-### Android image instrumentation
-
-The Android CI artifact `scanner-image-instrumentation-apk` includes an instrumentation runner using the real ML Kit module. To execute the locally built APK on an authorized physical device, set `ANDROID_SERIAL` and run `bash scripts/test-images-android.sh` (optionally pass the downloaded APK path). The script refuses emulator serials and the emulator system property. It installs only the scanner test package and checks the instrumentation result. No camera permission is requested by these image-only tests.
-
-The harness has passed on a physical Samsung SM-G973F: real ML Kit recognition,
-permission grant, preview streaming, disable/enable, background/foreground and
-release. Vision image recognition also passes with real fixtures on the macOS CI runner.
-
-### Generate a QR image
+`QrImages::decode($uri, $complete, $failure)` decodes a local image (`pam-file:///...` from `Files::pick()`, granted `content://` or local `file://`) without opening the camera; remote URLs are rejected and up to 16 distinct QR values are returned. `QrImages::generate($text, $pixels, complete:, failure:)` renders a QR PNG offline, and `QrImages::release($uri)` frees it.
 
 ```php
 QrImages::generate('https://example.test/profile', 440,
@@ -168,6 +97,63 @@ QrImages::generate('https://example.test/profile', 440,
 );
 ```
 
-Generation works offline: ZXing Core 3.5.4 on Android and Core Image on iOS. The payload is UTF-8, 1–2048 bytes, without NUL; dimensions are 128–1024 pixels. The PNG has a white background, medium error correction and a four-module quiet zone. A size too small for the payload fails instead of cropping the QR. Files live in the private `pam-qr-generated` cache directory. Call `release` on replacement/unmount, including a late result after the owner unmounted. It only accepts files generated in that directory. Interrupted-process leftovers are bounded to 16 files and pruned after 24 hours on the next generation.
+Limits, cache rules and validation status: [docs/qr-images.md](docs/qr-images.md).
 
-Android generation instrumentation can run without camera permission using `-e generationOnly true` with `dev.pam.scanner.ScannerImageInstrumentation`: validates URL/otpauth/Unicode roundtrip via ML Kit, dimensions, bounds and cleanup. The existing full image/camera suite remains available without the argument. iOS generation test source is `tests/ios-generation/main.swift`, compiled with `QrImageGenerator.swift` and `QrImageDecoder.swift` in an iOS test target; it covers the same roundtrip, dimensions, bounds and cleanup. iOS requires Apple SDK execution.
+<a id="api-guide"></a>
+## <picture><img src=".github/assets/icons/code.svg" width="22" height="22" alt=""></picture> API guide
+
+| API | Responsibility |
+| --- | --- |
+| `ScannerView` | Render the native preview and configure scanning. |
+| `BarcodeFormat` | Select only the barcode symbologies the product needs. |
+| `ScanResult` | Receive value, format, and normalized scan data. |
+| `ScannerEventKind` | Handle typed results, permission failures, and native errors. |
+| `CameraFacing` | Select front or back camera. |
+| `QrImages` | Decode QR codes in selected images and generate QR images. |
+
+All coded states, kinds, and variants are sequential integer-backed enums. Use enum cases in application code; do not depend on raw wire numbers.
+
+<a id="production-rules"></a>
+## <picture><img src=".github/assets/icons/shield.svg" width="22" height="22" alt=""></picture> Production rules
+
+- Request camera permission before mounting an enabled scanner.
+- Restrict formats to improve speed and reduce false positives.
+- Validate scanned values before navigation, network calls, or payment actions.
+- Run `pam doctor`, `pam test`, and a signed release build on every supported platform.
+- Exercise denial, cancellation, backgrounding, process restart, and offline behavior before release.
+
+Security vulnerabilities should be reported through the repository security policy or GitHub private vulnerability reporting, not a public issue.
+
+<a id="troubleshooting"></a>
+## <picture><img src=".github/assets/icons/terminal.svg" width="22" height="22" alt=""></picture> Troubleshooting
+
+- **Preview is black:** verify permission, lifecycle visibility, and camera availability.
+- **The same code fires repeatedly:** increase `duplicateInterval()`.
+- **A format is never recognized:** include it explicitly in `make()`.
+- **Native integration is stale:** run `pam doctor --fix`, rebuild the native host, and inspect the first reported diagnostic.
+
+Platform SDKs, credentials, entitlements, physical hardware, and store configuration remain application responsibilities.
+
+<a id="docs"></a>
+## <picture><img src=".github/assets/icons/book.svg" width="22" height="22" alt=""></picture> Docs
+
+- [PAM Native overview](https://push-in.github.io/pam-docs/native/overview/)
+- [Plugin and native capability model](https://push-in.github.io/pam-docs/native/plugins/)
+- [PAM introduction](https://push-in.github.io/pam-docs/introduction/)
+- [Changelog](CHANGELOG.md)
+- [Report an issue](https://github.com/push-in/pam-native-scanner/issues)
+- [QR codes in selected images and QR generation](docs/qr-images.md)
+- [Android development checks](docs/android-development.md)
+
+<a id="pam-ecosystem"></a>
+## <picture><img src=".github/assets/icons/plug.svg" width="22" height="22" alt=""></picture> Part of the PAM ecosystem
+
+PAM runs PHP natively on servers, desktops and phones. This repository is one piece of it.
+
+| [**PAM**](https://github.com/push-in/pam) | [**PAM Desktop**](https://github.com/push-in/pam-desktop) | [**PAM Native**](https://github.com/push-in/pam-native) | [**Ecosystem**](https://github.com/push-in/pam#ecosystem) |
+| --- | --- | --- | --- |
+| the runtime and CLI | native desktop apps in PHP | native Android and iOS apps in PHP | every official package and plugin |
+
+<sub>Docs: [push-in.github.io/pam-docs](https://push-in.github.io/pam-docs/introduction/) · [Issues](https://github.com/push-in/pam-native-scanner/issues)</sub>
+
+<p align="center"><sub><a href="LICENSE">Apache License 2.0</a> · Made in Brazil by Pushin</sub></p>
