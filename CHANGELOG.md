@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.0 - 2026-11-15
+
+- Android uses the unbundled ML Kit barcode scanner from Google Play
+  services: apps no longer ship `libbarhopper_v3.so` and its models (~5 MB
+  per ABI installed, 4.9 MB on arm64). Play installs the model with the app
+  (`com.google.mlkit.vision.DEPENDENCIES`); a sideloaded app requests it
+  when a scanner opens, and camera frames analysed before it arrives are
+  skipped without failure events. Devices without Google Play services
+  cannot scan.
+
 ## 0.4.0 - 2026-10-13
 
 - Add offline QR PNG generation and scoped temporary-file release for Android and iOS. Enforce payload/dimension limits, bounded cache cleanup and roundtrip contract tests.

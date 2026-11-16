@@ -19,7 +19,10 @@ dependencies {
     implementation("androidx.camera:camera-camera2:1.6.1")
     implementation("androidx.camera:camera-lifecycle:1.6.1")
     implementation("androidx.camera:camera-view:1.6.1")
-    implementation("com.google.mlkit:barcode-scanning:17.3.0")
+    // Unbundled ML Kit: Google Play services ships the barcode model, so the
+    // app no longer carries libbarhopper (~5 MB per ABI) and its models.
+    implementation("com.google.android.gms:play-services-mlkit-barcode-scanning:18.3.1")
+    implementation("com.google.android.gms:play-services-base:18.7.2")
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation(files(providers.gradleProperty("pamPluginApi").get()))
 }
