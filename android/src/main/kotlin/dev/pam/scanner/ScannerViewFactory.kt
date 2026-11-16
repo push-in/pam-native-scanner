@@ -14,6 +14,9 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import com.google.android.gms.common.moduleinstall.ModuleInstall
+import com.google.android.gms.common.moduleinstall.ModuleInstallRequest
+import com.google.mlkit.common.MlKitException
 import com.google.mlkit.vision.barcode.BarcodeScanner
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
@@ -43,7 +46,20 @@ private class ScannerHost(context: Context) : FrameLayout(context) {
     private var boundPreview: Preview? = null
     private var boundAnalysis: ImageAnalysis? = null
 
-    init{addView(previewView,LayoutParams(LayoutParams.MATCH_PARENT,LayoutParams.MATCH_PARENT));post{bind()}}
+    init{addView(previewView,LayoutParams(LayoutParams.MATCH_PARENT,LayoutParams.MATCH_PARENT));requestModule();post{bind()}}
+
+    /**
+     * The unbundled model normally arrives with the Play install; a sideloaded
+     * app or a cleared Play cache asks for it now. Frames analysed meanwhile
+     * fail with UNAVAILABLE and are skipped quietly.
+     */
+    private fun requestModule() {
+        runCatching {
+            ModuleInstall.getClient(context).installModules(
+                ModuleInstallRequest.newBuilder().addApi(scanner).build(),
+            )
+        }
+    }
     fun update(values: Map<String, WireValue>) {
         if (released) return
         val nextFacing = values.integer("facing", 1)
@@ -133,6 +149,8 @@ private class ScannerHost(context: Context) : FrameLayout(context) {
                     }
                 }
                 .addOnFailureListener {
+                    // Model still installing: the next frames retry, PHP hears nothing.
+                    if ((it as? MlKitException)?.errorCode == MlKitException.UNAVAILABLE) return@addOnFailureListener
                     send(mapOf("event" to WireValue.Integer(3), "message" to WireValue.Text(it.message.orEmpty())), generation)
                 }
                 .addOnCompleteListener {
