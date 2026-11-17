@@ -125,6 +125,6 @@ internal fun resolvePamFile(filesDirectory: File, uri: Uri): Uri {
     })
     val root = File(filesDirectory, "pam-files").canonicalFile
     val source = File(root, segments.joinToString(File.separator)).canonicalFile
-    require(source.toPath().startsWith(root.toPath()) && source.isFile)
+    require(source.path.startsWith(root.path + File.separator) && source.isFile)
     return Uri.fromFile(source)
 }

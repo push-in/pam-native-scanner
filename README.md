@@ -68,7 +68,7 @@ The analyzer keeps only the latest frame, runs outside the UI thread, closes eve
 
 | Platform | Support | Notes |
 | --- | --- | --- |
-| Android | API 26+ | CameraX 1.6.1, ML Kit barcode scanning 17.3.0 (bundled), ZXing Core 3.5.4 |
+| Android | API 24+ | CameraX 1.6.1, ML Kit barcode scanning 17.3.0 (bundled), ZXing Core 3.5.4 |
 | iOS | 15.0+ | AVFoundation, Vision, ImageIO, Core Image |
 | PAM Native | 0.8.0 to < 2.0.0 | From `pam-native.plugin.json`; PHP 8.5+ |
 

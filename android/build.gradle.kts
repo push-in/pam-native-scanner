@@ -4,7 +4,7 @@ android {
     namespace = "dev.pam.scanner"
     compileSdk = 36
     defaultConfig {
-        minSdk = 26
+        minSdk = 24
         testInstrumentationRunner = "dev.pam.scanner.ScannerImageInstrumentation"
     }
     compileOptions {
